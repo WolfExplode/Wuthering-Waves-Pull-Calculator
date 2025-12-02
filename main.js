@@ -10,7 +10,10 @@ class PullCalculatorUI {
             currentPity: 0,
             hasGuarantee: false,
             bannerType: 'character',
-            successRateTarget: 90
+            successRateTarget: 90,
+            currentAstrite: 0,
+            baseDailyIncome: 150,
+            hasSubscription: false
         };
         
         this.chart = null;
@@ -18,6 +21,7 @@ class PullCalculatorUI {
         this.calculationDebounceTimer = null;
         this.chartUpdateTimer = null;
         this.isCalculating = false;
+        this.currentDistribution = null; // Store distribution for cumulative probability calculation
         
         this.init();
     }
@@ -133,6 +137,47 @@ class PullCalculatorUI {
             });
         }
 
+        // Current astrite input
+        const currentAstriteInput = document.getElementById('current-astrite');
+        if (currentAstriteInput) {
+            let astriteInputThrottleTimer = null;
+            currentAstriteInput.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value) || 0;
+                this.state.currentAstrite = Math.max(0, value);
+                
+                if (astriteInputThrottleTimer) {
+                    clearTimeout(astriteInputThrottleTimer);
+                }
+                astriteInputThrottleTimer = setTimeout(() => {
+                    this.saveState();
+                    if (this.state.characters > 0 || this.state.weapons > 0) {
+                        this.updateDaysNeeded();
+                    }
+                }, 300);
+            });
+        }
+
+        // Base daily income input
+        const baseDailyIncomeInput = document.getElementById('base-daily-income');
+        if (baseDailyIncomeInput) {
+            let incomeInputThrottleTimer = null;
+            baseDailyIncomeInput.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value) || 0;
+                this.state.baseDailyIncome = value;
+                this.updateTotalDailyIncome();
+                
+                if (incomeInputThrottleTimer) {
+                    clearTimeout(incomeInputThrottleTimer);
+                }
+                incomeInputThrottleTimer = setTimeout(() => {
+                    this.saveState();
+                    if (this.state.characters > 0 || this.state.weapons > 0) {
+                        this.updateDaysNeeded();
+                    }
+                }, 300);
+            });
+        }
+
         let resizeTimer = null;
         window.addEventListener('resize', () => {
             if (resizeTimer) {
@@ -175,6 +220,16 @@ class PullCalculatorUI {
             successSlider.value = this.state.successRateTarget;
             successValue.textContent = this.state.successRateTarget + '%';
         }
+
+        const currentAstriteInput = document.getElementById('current-astrite');
+        if (currentAstriteInput) {
+            currentAstriteInput.value = this.state.currentAstrite;
+        }
+
+        const baseDailyIncomeInput = document.getElementById('base-daily-income');
+        if (baseDailyIncomeInput) {
+            baseDailyIncomeInput.value = this.state.baseDailyIncome || 150;
+        }
         
         const toggle = document.getElementById('guarantee-toggle');
         if (this.state.hasGuarantee) {
@@ -182,6 +237,36 @@ class PullCalculatorUI {
         } else {
             toggle.classList.remove('active');
         }
+
+        const subscriptionToggle = document.getElementById('subscription-toggle');
+        if (subscriptionToggle) {
+            if (this.state.hasSubscription) {
+                subscriptionToggle.classList.add('active');
+            } else {
+                subscriptionToggle.classList.remove('active');
+            }
+        }
+
+        this.updateTotalDailyIncome();
+    }
+
+    updateTotalDailyIncome() {
+        const baseIncome = this.state.baseDailyIncome || 0;
+        const effectiveBase = baseIncome > 0 ? baseIncome : 150;
+        const subscriptionBonus = this.state.hasSubscription ? 100 : 0;
+        const totalDaily = effectiveBase + subscriptionBonus;
+
+        const totalIncomeElement = document.getElementById('total-daily-income');
+        if (totalIncomeElement) {
+            totalIncomeElement.textContent = `Total: ${totalDaily} astrite/day`;
+        }
+    }
+
+    getTotalDailyIncome() {
+        const baseIncome = this.state.baseDailyIncome || 0;
+        const effectiveBase = baseIncome > 0 ? baseIncome : 150;
+        const subscriptionBonus = this.state.hasSubscription ? 100 : 0;
+        return effectiveBase + subscriptionBonus;
     }
 
     updatePityDisplay() {
@@ -220,13 +305,6 @@ class PullCalculatorUI {
         const option = {
             backgroundColor: 'transparent',
             animation: false,
-            title: {
-                text: 'Pull Probability Distribution',
-                textStyle: {
-                    color: '#06b6d4',
-                    fontSize: 16
-                }
-            },
             tooltip: {
                 trigger: 'axis',
                 backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -301,6 +379,7 @@ class PullCalculatorUI {
 
         this.chartUpdateTimer = setTimeout(() => {
             if (!this.chart || !distribution || Object.keys(distribution).length === 0) {
+                this.currentDistribution = null;
                 this.chart.setOption({
                     xAxis: { data: [] },
                     series: [{ data: [] }]
@@ -308,8 +387,29 @@ class PullCalculatorUI {
                 return;
             }
 
+            // Store distribution for cumulative probability calculation in tooltip
+            this.currentDistribution = distribution;
+
             const pulls = Object.keys(distribution).map(Number).sort((a, b) => a - b);
             const probabilities = pulls.map(pull => distribution[pull]);
+            
+            // Create tooltip formatter with closure over current distribution
+            const tooltipFormatter = (params) => {
+                const pull = params[0].axisValue;
+                const probability = params[0].value;
+                
+                // Calculate cumulative probability (probability of getting all targets by this pull or earlier)
+                let cumulativeProb = 0;
+                const sortedPulls = Object.keys(distribution).map(Number).sort((a, b) => a - b);
+                for (const p of sortedPulls) {
+                    if (p <= pull) {
+                        cumulativeProb += distribution[p];
+                    }
+                }
+                
+                return `Pull ${pull}: ${(probability * 100).toFixed(2)}% probability<br/>` +
+                       `Cumulative: ${(cumulativeProb * 100).toFixed(2)}% chance by pull ${pull}`;
+            };
             
             const option = {
                 xAxis: {
@@ -317,7 +417,10 @@ class PullCalculatorUI {
                 },
                 series: [{
                     data: probabilities
-                }]
+                }],
+                tooltip: {
+                    formatter: tooltipFormatter
+                }
             };
             
             this.chart.setOption(option, { notMerge: false, lazyUpdate: true });
@@ -396,6 +499,7 @@ class PullCalculatorUI {
 
         this.animateValue('expected-pulls', totalExpected, 0);
         this.animateValue('astrite-cost', astriteNeeded, 0);
+        this.updateDaysNeeded(astriteNeeded);
 
         // If stats from simulations are available, update percentile displays
         if (results.stats) {
@@ -443,6 +547,38 @@ class PullCalculatorUI {
         }
     }
 
+    updateDaysNeeded(astriteNeeded = null) {
+        const daysElement = document.getElementById('days-needed');
+        
+        if (!daysElement) return;
+
+        // Get total daily income (base + subscription, defaulting to 150 if base is 0)
+        const dailyAstrite = this.getTotalDailyIncome();
+
+        // If astriteNeeded is not provided, try to get it from the displayed value
+        if (astriteNeeded === null) {
+            const astriteCostElement = document.getElementById('astrite-cost');
+            if (astriteCostElement && astriteCostElement.textContent !== '-') {
+                astriteNeeded = parseFloat(astriteCostElement.textContent.replace(/[^\d.]/g, ''));
+            } else {
+                daysElement.textContent = '-';
+                return;
+            }
+        }
+
+        const currentAstrite = this.state.currentAstrite || 0;
+        const astriteDeficit = Math.max(0, astriteNeeded - currentAstrite);
+        const daysNeeded = dailyAstrite > 0 ? Math.ceil(astriteDeficit / dailyAstrite) : Infinity;
+
+        if (astriteDeficit <= 0) {
+            this.animateValue('days-needed', 0, 0);
+        } else if (daysNeeded === Infinity) {
+            daysElement.textContent = '-';
+        } else {
+            this.animateValue('days-needed', daysNeeded, 0);
+        }
+    }
+
     animateValue(elementId, targetValue, startValue = 0, suffix = '') {
         const element = document.getElementById(elementId);
         const currentText = element.textContent;
@@ -473,11 +609,13 @@ class PullCalculatorUI {
     }
 
     clearResults() {
-        const placeholders = ['-', '-'];
+        const placeholders = ['-', '-', '-'];
         const expected = document.getElementById('expected-pulls');
         const astrite = document.getElementById('astrite-cost');
+        const days = document.getElementById('days-needed');
         if (expected) expected.textContent = placeholders[0];
         if (astrite) astrite.textContent = placeholders[1];
+        if (days) days.textContent = placeholders[2];
 
         ['median-pulls', 'mode-pulls', 'percentile-90', 'percentile-95', 'total-pulls', 'total-astrite'].forEach(id => {
             const el = document.getElementById(id);
@@ -536,6 +674,54 @@ function toggleGuarantee() {
 
 function calculatePulls() {
     window.calculatorUI.calculateAndUpdate();
+}
+
+function updateCurrentAstrite(value) {
+    const ui = window.calculatorUI;
+    const numValue = parseInt(value) || 0;
+    ui.state.currentAstrite = Math.max(0, numValue);
+    ui.saveState();
+    
+    // Update days needed if we have results
+    const astriteCostEl = document.getElementById('astrite-cost');
+    if (astriteCostEl && astriteCostEl.textContent !== '-') {
+        ui.updateDaysNeeded();
+    }
+}
+
+function updateBaseDailyIncome(value) {
+    const ui = window.calculatorUI;
+    const numValue = parseInt(value) || 0;
+    ui.state.baseDailyIncome = numValue;
+    ui.updateTotalDailyIncome();
+    ui.saveState();
+    
+    // Update days needed if we have results
+    const astriteCostEl = document.getElementById('astrite-cost');
+    if (astriteCostEl && astriteCostEl.textContent !== '-') {
+        ui.updateDaysNeeded();
+    }
+}
+
+function toggleSubscription() {
+    const ui = window.calculatorUI;
+    ui.state.hasSubscription = !ui.state.hasSubscription;
+    
+    const toggle = document.getElementById('subscription-toggle');
+    if (ui.state.hasSubscription) {
+        toggle.classList.add('active');
+    } else {
+        toggle.classList.remove('active');
+    }
+    
+    ui.updateTotalDailyIncome();
+    ui.saveState();
+    
+    // Update days needed if we have results
+    const astriteCostEl = document.getElementById('astrite-cost');
+    if (astriteCostEl && astriteCostEl.textContent !== '-') {
+        ui.updateDaysNeeded();
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
