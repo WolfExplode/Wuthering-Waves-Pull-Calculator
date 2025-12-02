@@ -160,6 +160,38 @@
             border: 1px solid rgba(30, 58, 138, 0.2);
             contain: layout style paint;
         }
+
+        .icon-img {
+            width: 24px;
+            height: 24px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            filter: drop-shadow(0 0 4px rgba(6, 182, 212, 0.3));
+        }
+
+        .icon-img-large {
+            width: 32px;
+            height: 32px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.4));
+        }
+
+        .icon-img-result {
+            width: 40px;
+            height: 40px;
+            display: block;
+            margin: 0 auto 8px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.5));
+        }
     </style>
 </head>
 <body class="text-gray-100">
@@ -174,11 +206,8 @@
                     Wuthering Waves
                     <span class="block text-4xl md:text-5xl text-cyan-400">Pull Calculator</span>
                 </h1>
-                <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-                    Calculate the exact number of pulls needed for your desired 5-star characters and weapons
-                </p>
                 <p class="text-sm text-cyan-400 mt-2">
-                    ✓ Powered by real data from wuwatracker.com ✓
+                    Powered by real data from wuwatracker.com
                 </p>
             </div>
         </div>
@@ -190,11 +219,15 @@
             <!-- Input Panel -->
             <div class="lg:col-span-1">
                 <div class="glass-panel p-6 hover-lift">
-                    <h2 class="text-2xl font-bold mb-6 text-cyan-400">Calculator Settings</h2>
+                    <h2 class="text-2xl font-bold mb-6 text-cyan-400">Calculator Inputs</h2>
                     
                     <!-- Character Counter -->
                     <div class="mb-8">
-                        <label class="block text-sm font-medium mb-3 text-gray-300">Desired 5-Star Characters</label>
+                        <label class="block text-sm font-medium mb-3 text-gray-300 flex items-center">
+                            <img src="https://www.prydwen.gg/static/098460d605deac421c6b63e7221c8560/60b4d/ioun_icon.webp" 
+                                 alt="Character" class="icon-img" onerror="this.style.display='none'">
+                            Desired 5-Star Characters
+                        </label>
                         <div class="flex items-center justify-between">
                             <button class="counter-btn" onclick="adjustCounter('characters', -1)">−</button>
                             <div class="text-center">
@@ -207,7 +240,11 @@
                     
                     <!-- Weapon Counter -->
                     <div class="mb-8">
-                        <label class="block text-sm font-medium mb-3 text-gray-300">Desired 5-Star Weapons</label>
+                        <label class="block text-sm font-medium mb-3 text-gray-300 flex items-center">
+                            <img src="https://www.prydwen.gg/static/ffeac953a07a533505771549e13fdf53/d8057/category_weapons.webp" 
+                                 alt="Weapon" class="icon-img" onerror="this.style.display='none'">
+                            Desired 5-Star Weapons
+                        </label>
                         <div class="flex items-center justify-between">
                             <button class="counter-btn" onclick="adjustCounter('weapons', -1)">−</button>
                             <div class="text-center">
@@ -257,6 +294,48 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Current Astrite Input -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300 flex items-center">
+                            <img src="https://static.wikia.nocookie.net/wutheringwaves/images/1/16/Item_Astrite.png/revision/latest?cb=20240523021541" 
+                                 alt="Astrite" class="icon-img" onerror="this.style.display='none'">
+                            Current Astrite
+                        </label>
+                        <input type="number" id="current-astrite" min="0" value="0"
+                               class="w-full bg-[rgba(15,23,42,0.5)] border border-cyan-500/30 rounded-lg px-4 py-3 
+                                      text-cyan-400 text-lg font-semibold mono focus:outline-none focus:ring-2 
+                                      focus:ring-cyan-500/50 focus:border-cyan-500"
+                               placeholder="0"
+                               oninput="updateCurrentAstrite(this.value)">
+                    </div>
+
+                    <!-- Daily Income Settings -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300 flex items-center">
+                            <img src="https://static.wikia.nocookie.net/wutheringwaves/images/1/16/Item_Astrite.png/revision/latest?cb=20240523021541" 
+                                 alt="Astrite" class="icon-img" onerror="this.style.display='none'">
+                            Base Daily Income
+                        </label>
+                        <input type="number" id="base-daily-income" min="0" value="150"
+                               class="w-full bg-[rgba(15,23,42,0.5)] border border-cyan-500/30 rounded-lg px-4 py-3 
+                                      text-cyan-400 text-lg font-semibold mono focus:outline-none focus:ring-2 
+                                      focus:ring-cyan-500/50 focus:border-cyan-500"
+                               placeholder="150"
+                               oninput="updateBaseDailyIncome(this.value)">
+                        <div class="text-xs text-gray-400 mt-2">Default: 150 astrite/day (if 0, uses 150)</div>
+                    </div>
+
+                    <!-- Lunite Subscription Toggle -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Lunite Subscription</label>
+                        <div class="flex items-center justify-between">
+                            <div class="toggle-switch" id="subscription-toggle" onclick="toggleSubscription()">
+                                <div class="toggle-knob"></div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-2">$5 USD/month, Adds 100 astrite/day</div>
+                    </div>
                     
                     <!-- Calculate Button -->
                     <button id="calculate-btn" 
@@ -284,7 +363,17 @@
                         <!-- Astrite Cost -->
                         <div class="text-center">
                             <div class="text-4xl font-bold text-amber-400 mono" id="astrite-cost">-</div>
-                            <div class="text-sm text-gray-400 mt-2">Astrite Needed</div>
+                            <div class="text-sm text-gray-400 mt-2 flex items-center justify-center gap-2">
+                                <img src="https://static.wikia.nocookie.net/wutheringwaves/images/1/16/Item_Astrite.png/revision/latest?cb=20240523021541" 
+                                     alt="Astrite" class="icon-img" onerror="this.style.display='none'">
+                                <span>Astrite Needed</span>
+                            </div>
+                        </div>
+
+                        <!-- Days Needed -->
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-purple-400 mono" id="days-needed">-</div>
+                            <div class="text-sm text-gray-400 mt-2">Days to Earn Enough</div>
                         </div>
                     </div>
                 
