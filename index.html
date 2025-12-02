@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wuthering Waves Pull Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        body {
+            background: #0a0a0a;
+            overflow-x: hidden;
+        }
+        
+        .cosmic-bg {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1e3a8a 50%, #7c3aed 100%);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+        }
+        
+        .particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+        
+        .glass-panel {
+            background: rgba(30, 58, 138, 0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(30, 58, 138, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+            will-change: transform, opacity;
+            transform: translateZ(0);
+        }
+        
+        .glow-text {
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+        }
+        
+        .pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
+            to { box-shadow: 0 0 30px rgba(6, 182, 212, 0.6); }
+        }
+        
+        .hover-lift {
+            transition: all 0.3s ease;
+        }
+        
+        .hover-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(6, 182, 212, 0.2);
+        }
+        
+        .number-display {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #06b6d4, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .slider-track {
+            background: linear-gradient(90deg, #1e3a8a, #06b6d4);
+            height: 8px;
+            border-radius: 4px;
+        }
+        
+        .slider-thumb {
+            background: #06b6d4;
+            border: 2px solid #7c3aed;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+        }
+        
+        .toggle-switch {
+            width: 60px;
+            height: 30px;
+            background: #1e3a8a;
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-switch.active {
+            background: #06b6d4;
+        }
+        
+        .toggle-knob {
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .toggle-switch.active .toggle-knob {
+            left: 32px;
+        }
+        
+        .counter-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(30, 58, 138, 0.3);
+            border: 1px solid rgba(6, 182, 212, 0.5);
+            color: #06b6d4;
+            font-size: 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .counter-btn:hover {
+            background: rgba(6, 182, 212, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .chart-container {
+            height: 400px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 12px;
+            border: 1px solid rgba(30, 58, 138, 0.2);
+            contain: layout style paint;
+        }
+    </style>
+</head>
+<body class="text-gray-100">
+    <div class="cosmic-bg"></div>
+    <div id="particle-container" class="particle-canvas"></div>
+    
+    <!-- Header -->
+    <header class="relative z-10 py-8">
+        <div class="container mx-auto px-4">
+            <div class="text-center">
+                <h1 class="text-5xl md:text-6xl font-bold glow-text mb-4">
+                    Wuthering Waves
+                    <span class="block text-4xl md:text-5xl text-cyan-400">Pull Calculator</span>
+                </h1>
+                <p class="text-xl text-gray-300 max-w-2xl mx-auto">
+                    Calculate the exact number of pulls needed for your desired 5-star characters and weapons
+                </p>
+                <p class="text-sm text-cyan-400 mt-2">
+                    ✓ Powered by real data from wuwatracker.com ✓
+                </p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Calculator -->
+    <main class="relative z-10 container mx-auto px-4 py-8">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Input Panel -->
+            <div class="lg:col-span-1">
+                <div class="glass-panel p-6 hover-lift">
+                    <h2 class="text-2xl font-bold mb-6 text-cyan-400">Calculator Settings</h2>
+                    
+                    <!-- Character Counter -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Desired 5-Star Characters</label>
+                        <div class="flex items-center justify-between">
+                            <button class="counter-btn" onclick="adjustCounter('characters', -1)">−</button>
+                            <div class="text-center">
+                                <div id="character-count" class="number-display mono">0</div>
+                                <div class="text-sm text-gray-400">characters</div>
+                            </div>
+                            <button class="counter-btn" onclick="adjustCounter('characters', 1)">+</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Weapon Counter -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Desired 5-Star Weapons</label>
+                        <div class="flex items-center justify-between">
+                            <button class="counter-btn" onclick="adjustCounter('weapons', -1)">−</button>
+                            <div class="text-center">
+                                <div id="weapon-count" class="number-display mono">0</div>
+                                <div class="text-sm text-gray-400">weapons</div>
+                            </div>
+                            <button class="counter-btn" onclick="adjustCounter('weapons', 1)">+</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Current Pity Slider -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Current Pity Count</label>
+                        <div class="relative">
+                            <input type="range" id="pity-slider" min="0" max="79" value="0" 
+                                   class="w-full h-2 rounded-lg appearance-none cursor-pointer slider-track">
+                            <div class="flex justify-between text-xs text-gray-400 mt-2">
+                                <span>0</span>
+                                <span id="pity-value" class="font-medium text-cyan-400">0</span>
+                                <span>79</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 50/50 Toggle -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">50/50 Status</label>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-400">No Guarantee</span>
+                            <div class="toggle-switch" id="guarantee-toggle" onclick="toggleGuarantee()">
+                                <div class="toggle-knob"></div>
+                            </div>
+                            <span class="text-sm text-cyan-400">Have Guarantee</span>
+                        </div>
+                    </div>
+
+                    <!-- Target Success Rate Slider -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Target Success Rate</label>
+                        <div class="relative">
+                            <input type="range" id="success-slider" min="50" max="99" value="90"
+                                   class="w-full h-2 rounded-lg appearance-none cursor-pointer slider-track">
+                            <div class="flex justify-between text-xs text-gray-400 mt-2">
+                                <span>50%</span>
+                                <span id="success-value" class="font-medium text-cyan-400">90%</span>
+                                <span>99%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Calculate Button -->
+                    <button id="calculate-btn" 
+                            class="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 
+                                   text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 
+                                   transform hover:scale-105"
+                            onclick="calculatePulls()">
+                        Calculate Pulls
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Results Panel -->
+            <div class="lg:col-span-2">
+                <div class="glass-panel p-6 hover-lift mb-8">
+                    <h2 class="text-2xl font-bold mb-6 text-cyan-400">Calculation Results</h2>
+                    
+                    <div class="grid md:grid-cols-3 gap-6 mb-8">
+                        <!-- Expected Pulls -->
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-emerald-400 mono" id="expected-pulls">-</div>
+                            <div class="text-sm text-gray-400 mt-2">Pulls for Target Success Rate</div>
+                        </div>
+                        
+                        <!-- Astrite Cost -->
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-amber-400 mono" id="astrite-cost">-</div>
+                            <div class="text-sm text-gray-400 mt-2">Astrite Needed</div>
+                        </div>
+                    </div>
+                
+                <!-- Probability Chart -->
+                <div class="glass-panel p-6 hover-lift">
+                    <h2 class="text-2xl font-bold mb-6 text-cyan-400">Probability Distribution</h2>
+                    <div id="probability-chart" class="chart-container"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 py-8 mt-16">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-400">
+                © 2025 Wuthering Waves Pull Calculator. Not affiliated with Kuro Games.
+            </p>
+        </div>
+    </footer>
+
+    <script src="real_data_calculator.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
