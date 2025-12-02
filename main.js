@@ -21,7 +21,9 @@ class PullCalculatorUI {
         this.calculationDebounceTimer = null;
         this.chartUpdateTimer = null;
         this.isCalculating = false;
-        this.currentDistribution = null; // Store distribution for cumulative probability calculation
+        this.currentHistogram = null; // Store histogram data for tooltip
+        this.currentCumulative = null; // Store cumulative probabilities
+        this.currentBinWidth = 1; // Store bin width for tooltip
         
         this.init();
     }
@@ -312,16 +314,36 @@ class PullCalculatorUI {
                 textStyle: {
                     color: '#f3f4f6'
                 },
-                formatter: function(params) {
-                    const pull = params[0].axisValue;
-                    const probability = params[0].value;
-                    return `Pull ${pull}: ${(probability * 100).toFixed(2)}% probability`;
+                formatter: (params) => {
+                    const ui = window.calculatorUI;
+                    const bin = params[0].axisValue;
+                    const density = params[0].value;
+                    
+                    // Calculate the bin range
+                    const binStart = Number(bin);
+                    const binEnd = binStart + (ui.currentBinWidth || 1) - 1;
+                    const binRange = ui.currentBinWidth > 1 
+                        ? `Pulls ${binStart}-${binEnd}` 
+                        : `Pull ${binStart}`;
+                    
+                    // Get cumulative probability for this bin
+                    let cumulativeProb = 0;
+                    if (ui.currentCumulative && ui.currentCumulative[bin] !== undefined) {
+                        cumulativeProb = ui.currentCumulative[bin];
+                    }
+                    
+                    // Probability of falling in this bin (density * binWidth)
+                    const binProbability = density * (ui.currentBinWidth || 1);
+                    
+                    return `${binRange}: ${(binProbability * 100).toFixed(2)}% probability<br/>` +
+                           `Cumulative: ${(cumulativeProb * 100).toFixed(2)}% chance by pull ${binEnd}`;
                 }
             },
             grid: {
-                left: '3%',
+                left: '8%',
                 right: '4%',
-                bottom: '3%',
+                bottom: '8%',
+                top: '5%',
                 containLabel: true
             },
             xAxis: {
@@ -338,6 +360,13 @@ class PullCalculatorUI {
             },
             yAxis: {
                 type: 'value',
+                name: 'Probability per Pull',
+                nameLocation: 'middle',
+                nameGap: 50,
+                nameTextStyle: {
+                    color: '#9ca3af',
+                    fontSize: 12
+                },
                 axisLine: {
                     lineStyle: {
                         color: '#374151'
@@ -356,14 +385,26 @@ class PullCalculatorUI {
                 }
             },
             series: [{
-                name: 'Probability',
-                type: 'line',
-                smooth: false,
-                symbol: 'none',
-                animation: false,
-                lineStyle: {
-                    color: '#06b6d4',
-                    width: 2
+                name: 'Probability Density',
+                type: 'bar',
+                barWidth: 'auto',
+                itemStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: '#06b6d4' },
+                            { offset: 1, color: '#7c3aed' }
+                        ]
+                    }
+                },
+                emphasis: {
+                    itemStyle: {
+                        color: '#06b6d4'
+                    }
                 },
                 data: []
             }]
@@ -372,14 +413,16 @@ class PullCalculatorUI {
         this.chart.setOption(option);
     }
 
-    updateChart(distribution) {
+    updateChart(histogramData, targetPulls = null) {
         if (this.chartUpdateTimer) {
             clearTimeout(this.chartUpdateTimer);
         }
 
         this.chartUpdateTimer = setTimeout(() => {
-            if (!this.chart || !distribution || Object.keys(distribution).length === 0) {
-                this.currentDistribution = null;
+            if (!this.chart || !histogramData || !histogramData.histogram || Object.keys(histogramData.histogram).length === 0) {
+                this.currentHistogram = null;
+                this.currentCumulative = null;
+                this.currentBinWidth = 1;
                 this.chart.setOption({
                     xAxis: { data: [] },
                     series: [{ data: [] }]
@@ -387,40 +430,87 @@ class PullCalculatorUI {
                 return;
             }
 
-            // Store distribution for cumulative probability calculation in tooltip
-            this.currentDistribution = distribution;
+            // Store histogram data for tooltip
+            this.currentHistogram = histogramData.histogram;
+            this.currentCumulative = histogramData.cumulative;
+            this.currentBinWidth = histogramData.binWidth || 1;
 
-            const pulls = Object.keys(distribution).map(Number).sort((a, b) => a - b);
-            const probabilities = pulls.map(pull => distribution[pull]);
+            const bins = Object.keys(histogramData.histogram).map(Number).sort((a, b) => a - b);
+            const densities = bins.map(bin => histogramData.histogram[bin]);
             
-            // Create tooltip formatter with closure over current distribution
-            const tooltipFormatter = (params) => {
-                const pull = params[0].axisValue;
-                const probability = params[0].value;
-                
-                // Calculate cumulative probability (probability of getting all targets by this pull or earlier)
-                let cumulativeProb = 0;
-                const sortedPulls = Object.keys(distribution).map(Number).sort((a, b) => a - b);
-                for (const p of sortedPulls) {
-                    if (p <= pull) {
-                        cumulativeProb += distribution[p];
+            // Prepare markLine for target pulls if available
+            // For category axis, we need to find the closest bin or use the target value directly
+            let markLine = undefined;
+            if (targetPulls !== null && targetPulls > 0 && bins.length > 0) {
+                // Find the closest bin to the target pulls
+                let closestBin = bins[0];
+                let minDiff = Math.abs(bins[0] - targetPulls);
+                for (let i = 1; i < bins.length; i++) {
+                    const diff = Math.abs(bins[i] - targetPulls);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        closestBin = bins[i];
                     }
                 }
                 
-                return `Pull ${pull}: ${(probability * 100).toFixed(2)}% probability<br/>` +
-                       `Cumulative: ${(cumulativeProb * 100).toFixed(2)}% chance by pull ${pull}`;
-            };
+                markLine = {
+                    silent: false,
+                    data: [{
+                        xAxis: closestBin,
+                        lineStyle: {
+                            color: '#fbbf24',
+                            width: 2,
+                            type: 'dashed'
+                        },
+                        label: {
+                            show: true,
+                            position: 'end',
+                            formatter: `Target: ${targetPulls}`,
+                            color: '#fbbf24',
+                            fontSize: 11,
+                            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                            padding: [4, 6]
+                        }
+                    }]
+                };
+            }
             
             const option = {
                 xAxis: {
-                    data: pulls
+                    data: bins,
+                    name: 'Pulls',
+                    nameLocation: 'middle',
+                    nameGap: 30,
+                    nameTextStyle: {
+                        color: '#9ca3af',
+                        fontSize: 12
+                    }
+                },
+                yAxis: {
+                    name: 'Probability per Pull',
+                    nameLocation: 'middle',
+                    nameGap: 50,
+                    nameTextStyle: {
+                        color: '#9ca3af',
+                        fontSize: 12
+                    },
+                    axisLabel: {
+                        formatter: function(value) {
+                            return (value * 100).toFixed(1) + '%';
+                        }
+                    }
+                },
+                grid: {
+                    left: '4%',
+                    right: '4%',
+                    bottom: '8%',
+                    top: '5%',
+                    containLabel: true
                 },
                 series: [{
-                    data: probabilities
-                }],
-                tooltip: {
-                    formatter: tooltipFormatter
-                }
+                    data: densities,
+                    markLine: markLine
+                }]
             };
             
             this.chart.setOption(option, { notMerge: false, lazyUpdate: true });
@@ -458,14 +548,15 @@ class PullCalculatorUI {
                     this.state.successRateTarget
                 );
 
-                let distribution = null;
-                if (results && results.totalExpected) {
-                    distribution = this.calculator.generateProbabilityDistribution(
+                let histogramData = null;
+                if (results && results.totalExpected && results.samples) {
+                    histogramData = this.calculator.generateRealHistogram(
+                        results.samples,
                         results.totalExpected
                     );
                 }
 
-                this.updateResults(results, distribution);
+                this.updateResults(results, histogramData);
             } catch (error) {
                 console.error('Calculation error:', error);
                 this.clearResults();
@@ -488,7 +579,7 @@ class PullCalculatorUI {
         button.disabled = false;
     }
 
-    updateResults(results, distribution) {
+    updateResults(results, histogramData) {
         if (!results || !results.totalExpected) {
             this.clearResults();
             return;
@@ -530,8 +621,8 @@ class PullCalculatorUI {
         if (totalPullsEl) totalPullsEl.textContent = totalExpected;
         if (totalAstriteEl) totalAstriteEl.textContent = astriteNeeded.toLocaleString();
 
-        if (distribution) {
-            this.updateChart(distribution);
+        if (histogramData) {
+            this.updateChart(histogramData, totalExpected);
         }
 
         if (!this._hasAnimatedResults) {
