@@ -333,44 +333,80 @@ class RealDataCalculator {
             expectedFiveStars,
             meanPerFiveStar: expectedFullCycle,
             targetSuccessRate: targetSuccess * 100,
-            stats
+            stats,
+            samples // Return samples for histogram generation
         };
     }
 
     /**
-     * Generate a smooth probability distribution around the expected total pulls
-     * for chart visualization. This is a simple bell-shaped approximation, not a
-     * full convolution of the empirical distribution, but it gives a reasonable
-     * picture centered on the expected value.
+     * Generate a real histogram from Monte Carlo simulation samples.
+     * Returns an object with pull counts as keys and probability densities as values,
+     * along with cumulative probabilities.
      */
-    generateProbabilityDistribution(centerPulls) {
-        const center = Number(centerPulls) || 0;
-        if (center <= 0) return {};
+    generateRealHistogram(samples, targetPulls) {
+        // Filter out failed runs (Infinity)
+        const successfulSamples = samples.filter(s => isFinite(s));
+        const total = successfulSamples.length;
+        
+        if (total === 0) return { histogram: {}, cumulative: {} };
 
-        // Width of the distribution around the center
-        const width = Math.max(20, Math.round(center * 0.6));
-        const start = Math.max(1, Math.round(center - width / 2));
-        const end = Math.round(center + width / 2);
-
-        const distribution = {};
-        const sigma = width / 4;
-        let sum = 0;
-
-        for (let x = start; x <= end; x++) {
-            const z = (x - center) / sigma;
-            const p = Math.exp(-0.5 * z * z); // unnormalized normal PDF
-            distribution[x] = p;
-            sum += p;
+        // Determine bin width based on data range
+        const minPull = Math.min(...successfulSamples);
+        const maxPull = Math.max(...successfulSamples);
+        const range = maxPull - minPull;
+        
+        // Use adaptive bin width: smaller bins for smaller ranges, larger for bigger ranges
+        // Aim for roughly 50-100 bins for good visualization
+        let binWidth = 1;
+        if (range > 200) {
+            binWidth = 5;
+        } else if (range > 100) {
+            binWidth = 3;
+        } else if (range > 50) {
+            binWidth = 2;
         }
-
-        // Normalize so probabilities sum to 1
-        if (sum > 0) {
-            Object.keys(distribution).forEach((key) => {
-                distribution[key] = distribution[key] / sum;
-            });
+        
+        // Create histogram bins
+        const histogram = {};
+        const binCounts = {};
+        
+        // Initialize bins
+        for (let pull = 0; pull <= maxPull + binWidth; pull += binWidth) {
+            const bin = Math.floor(pull / binWidth) * binWidth;
+            if (!binCounts[bin]) {
+                binCounts[bin] = 0;
+            }
         }
-
-        return distribution;
+        
+        // Count samples in each bin
+        successfulSamples.forEach(pulls => {
+            const bin = Math.floor(pulls / binWidth) * binWidth;
+            binCounts[bin] = (binCounts[bin] || 0) + 1;
+        });
+        
+        // Calculate probability density (probability per pull within the bin)
+        // For histogram, we want probability density = (count / total) / binWidth
+        let runningCumulative = 0;
+        const cumulative = {};
+        
+        const sortedBins = Object.keys(binCounts).map(Number).sort((a, b) => a - b);
+        
+        sortedBins.forEach(bin => {
+            const count = binCounts[bin];
+            const probability = count / total; // Probability of falling in this bin
+            const density = probability / binWidth; // Probability density per pull
+            
+            histogram[bin] = density;
+            runningCumulative += probability;
+            cumulative[bin] = runningCumulative;
+        });
+        
+        return {
+            histogram,
+            cumulative,
+            binWidth,
+            totalSamples: total
+        };
     }
 }
 
