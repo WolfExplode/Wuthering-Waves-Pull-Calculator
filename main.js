@@ -465,15 +465,15 @@ class PullCalculatorUI {
                 if (closestIndex !== -1) {
                 markLine = {
                     silent: true,
+                    symbol: 'none',
                     data: [{
                         xAxis: closestIndex,
                         lineStyle: {
-                            color: '#fbbf24',
+                            color: '#34D399',
                             width: 2,
                             type: 'dashed'
                         },
                         label: { show: false },
-                        symbol: 'none'
                     }]
                 };
                 }
