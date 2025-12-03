@@ -21,9 +21,9 @@ class PullCalculatorUI {
         this.calculationDebounceTimer = null;
         this.chartUpdateTimer = null;
         this.isCalculating = false;
-        this.currentHistogram = null; // Store histogram data for tooltip
-        this.currentCumulative = null; // Store cumulative probabilities
-        this.currentBinWidth = 1; // Store bin width for tooltip
+        this.currentHistogram = null;
+        this.currentCumulative = null;
+        this.currentBinWidth = 1;
         
         this.init();
     }
@@ -99,7 +99,7 @@ class PullCalculatorUI {
     }
 
     setupEventListeners() {
-        // Pity slider - throttled for better performance
+        // Pity slider
         const pitySlider = document.getElementById('pity-slider');
         let sliderThrottleTimer = null;
         
@@ -439,7 +439,9 @@ class PullCalculatorUI {
             const densities = bins.map(bin => histogramData.histogram[bin]);
             
             // Prepare markLine for target pulls if available
-            // For category axis, we need to find the closest bin or use the target value directly
+            // For a category axis, markLine.xAxis should use the *index* of the category,
+            // not the pull number itself. Otherwise, once we start binning (binWidth > 1)
+            // and pulls get large, the line can fall outside the visible x-axis and disappear.
             let markLine = undefined;
             if (targetPulls !== null && targetPulls > 0 && bins.length > 0) {
                 // Find the closest bin to the target pulls
@@ -452,27 +454,29 @@ class PullCalculatorUI {
                         closestBin = bins[i];
                     }
                 }
-                
+
+                // Convert the closestBin value into its category index on the x-axis.
+                // Using the pull number directly (e.g., 200) as xAxis on a category axis
+                // makes ECharts treat it as "200th category index", which is usually out
+                // of range when we only have ~50–100 binned categories, causing the
+                // markLine to vanish when many pulls are displayed.
+                const closestIndex = bins.indexOf(closestBin);
+
+                if (closestIndex !== -1) {
                 markLine = {
-                    silent: false,
+                    silent: true,
                     data: [{
-                        xAxis: closestBin,
+                        xAxis: closestIndex,
                         lineStyle: {
                             color: '#fbbf24',
                             width: 2,
                             type: 'dashed'
                         },
-                        label: {
-                            show: true,
-                            position: 'end',
-                            formatter: `Target: ${targetPulls}`,
-                            color: '#fbbf24',
-                            fontSize: 11,
-                            backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                            padding: [4, 6]
-                        }
+                        label: { show: false },
+                        symbol: 'none'
                     }]
                 };
+                }
             }
             
             const option = {
