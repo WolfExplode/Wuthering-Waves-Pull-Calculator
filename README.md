@@ -22,6 +22,6 @@ The calculator uses real user submitted data from [wuwatracker.com](https://wuwa
 This graph shows the result from 4,000 simulated pulls
 Each bar represents the percentage of players who needed **exactly** that many pulls. The height shows how common that outcome is. The taller the bar, the more likely.
 
-**Probability**: Your chance of finishing within this exact range
-**Cumulative**: Your total chance of finishing by the end of this range
-**Dashed Line**: your Pulls for Target Success Rate.
+- **Probability**: Your chance of finishing within this exact range
+- **Cumulative**: Your total chance of finishing by the end of this range
+- **Dashed Line**: your Pulls for Target Success Rate.
