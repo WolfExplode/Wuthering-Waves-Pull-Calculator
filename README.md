@@ -5,7 +5,7 @@ A web-based calculator that helps you determine how many pulls and astrite you n
 ## How To Run
 Download the repository and open `index.html` in your browser to run the calculator
 
-https://github.com/user-attachments/assets/550aefdd-be80-4064-8cf0-4ac09e742a79
+![WutheringWavesPullCalculator](https://github.com/user-attachments/assets/3219be80-6787-480a-a199-dbd6710e258a)
 
 ## Technical Details
 - **Hard Pity**: 80 pulls
@@ -25,3 +25,4 @@ Each bar represents the percentage of players who needed **exactly** that many p
 - **Probability**: Your chance of finishing within this exact range
 - **Cumulative**: Your total chance of finishing by the end of this range
 - **Dashed Line**: your Pulls for Target Success Rate.
+
