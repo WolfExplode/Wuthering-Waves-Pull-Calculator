@@ -310,6 +310,42 @@
                                oninput="updateCurrentAstrite(this.value)">
                     </div>
 
+                    <!-- Owned Pulls (Radiant Tide & Forging Tide) -->
+                    <div class="mb-8">
+                        <label class="block text-sm font-medium mb-3 text-gray-300">Owned Pulls</label>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-medium mb-1 text-gray-300 flex items-center">
+                                    <img src="https://static.wikia.nocookie.net/wutheringwaves/images/f/f0/Item_Radiant_Tide.png/revision/latest?cb=20240523074327"
+                                         alt="Radiant Tide" class="icon-img" onerror="this.style.display='none'">
+                                    Owned Character Pulls (Radiant Tide)
+                                </label>
+                                <input type="number" id="owned-radiant-tides" min="0" value="0"
+                                       class="w-full bg-[rgba(15,23,42,0.5)] border border-cyan-500/30 rounded-lg px-4 py-2 
+                                              text-cyan-400 text-base font-semibold mono focus:outline-none focus:ring-2 
+                                              focus:ring-cyan-500/50 focus:border-cyan-500"
+                                       placeholder="0"
+                                       oninput="updateOwnedRadiantTides(this.value)">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium mb-1 text-gray-300 flex items-center">
+                                    <img src="https://static.wikia.nocookie.net/wutheringwaves/images/3/31/Item_Forging_Tide.png/revision/latest?cb=20240523074408"
+                                         alt="Forging Tide" class="icon-img" onerror="this.style.display='none'">
+                                    Owned Weapon Pulls (Forging Tide)
+                                </label>
+                                <input type="number" id="owned-forging-tides" min="0" value="0"
+                                       class="w-full bg-[rgba(15,23,42,0.5)] border border-cyan-500/30 rounded-lg px-4 py-2 
+                                              text-cyan-400 text-base font-semibold mono focus:outline-none focus:ring-2 
+                                              focus:ring-cyan-500/50 focus:border-cyan-500"
+                                       placeholder="0"
+                                       oninput="updateOwnedForgingTides(this.value)">
+                            </div>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-2">
+                            Radiant/Forge Tides are treated as <span class="text-cyan-400 font-semibold">160 astrite</span> each when calculating days needed.
+                        </div>
+                    </div>
+
                     <!-- Daily Income Settings -->
                     <div class="mb-8">
                         <label class="block text-sm font-medium mb-3 text-gray-300 flex items-center">

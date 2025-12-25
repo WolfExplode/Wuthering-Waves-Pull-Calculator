@@ -13,7 +13,9 @@ class PullCalculatorUI {
             successRateTarget: 90,
             currentAstrite: 0,
             baseDailyIncome: 150,
-            hasSubscription: false
+            hasSubscription: false,
+            ownedRadiantTides: 0,
+            ownedForgingTides: 0
         };
         
         this.chart = null;
@@ -231,6 +233,16 @@ class PullCalculatorUI {
         const baseDailyIncomeInput = document.getElementById('base-daily-income');
         if (baseDailyIncomeInput) {
             baseDailyIncomeInput.value = this.state.baseDailyIncome || 150;
+        }
+
+        const ownedRadiantInput = document.getElementById('owned-radiant-tides');
+        if (ownedRadiantInput) {
+            ownedRadiantInput.value = this.state.ownedRadiantTides || 0;
+        }
+
+        const ownedForgingInput = document.getElementById('owned-forging-tides');
+        if (ownedForgingInput) {
+            ownedForgingInput.value = this.state.ownedForgingTides || 0;
         }
         
         const toggle = document.getElementById('guarantee-toggle');
@@ -662,7 +674,14 @@ class PullCalculatorUI {
         }
 
         const currentAstrite = this.state.currentAstrite || 0;
-        const astriteDeficit = Math.max(0, astriteNeeded - currentAstrite);
+        const ownedRadiant = this.state.ownedRadiantTides || 0;
+        const ownedForging = this.state.ownedForgingTides || 0;
+        const totalOwnedTides = ownedRadiant + ownedForging;
+        const astritePerPull = this.calculator && this.calculator.ASTRITE_PER_PULL
+            ? this.calculator.ASTRITE_PER_PULL
+            : 160;
+        const effectiveAstrite = currentAstrite + totalOwnedTides * astritePerPull;
+        const astriteDeficit = Math.max(0, astriteNeeded - effectiveAstrite);
         const daysNeeded = dailyAstrite > 0 ? Math.ceil(astriteDeficit / dailyAstrite) : Infinity;
 
         if (astriteDeficit <= 0) {
@@ -813,6 +832,30 @@ function toggleSubscription() {
     ui.saveState();
     
     // Update days needed if we have results
+    const astriteCostEl = document.getElementById('astrite-cost');
+    if (astriteCostEl && astriteCostEl.textContent !== '-') {
+        ui.updateDaysNeeded();
+    }
+}
+
+function updateOwnedRadiantTides(value) {
+    const ui = window.calculatorUI;
+    const numValue = parseInt(value) || 0;
+    ui.state.ownedRadiantTides = Math.max(0, numValue);
+    ui.saveState();
+
+    const astriteCostEl = document.getElementById('astrite-cost');
+    if (astriteCostEl && astriteCostEl.textContent !== '-') {
+        ui.updateDaysNeeded();
+    }
+}
+
+function updateOwnedForgingTides(value) {
+    const ui = window.calculatorUI;
+    const numValue = parseInt(value) || 0;
+    ui.state.ownedForgingTides = Math.max(0, numValue);
+    ui.saveState();
+
     const astriteCostEl = document.getElementById('astrite-cost');
     if (astriteCostEl && astriteCostEl.textContent !== '-') {
         ui.updateDaysNeeded();
